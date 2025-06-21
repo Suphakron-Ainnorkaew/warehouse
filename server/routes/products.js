@@ -18,7 +18,7 @@ const testDbConnection = async () => {
 router.get('/', async (req, res) => {
     try {
         await testDbConnection();
-        const [products] = await db.query('SELECT * FROM products');
+        const [products] = await db.query('SELECT id, name, quantity, price, cost_price, category FROM products');
         res.json(products);
     } catch (error) {
         console.error('Error fetching products:', error.message, error.stack);
@@ -28,21 +28,21 @@ router.get('/', async (req, res) => {
 
 // Add product
 router.post('/add', async (req, res) => {
-    const { name, quantity, price } = req.body;
+    const { name, quantity, price, costPrice, category } = req.body;
     try {
         await testDbConnection();
-        if (!name || !quantity || !price) {
+        if (!name || !quantity || !price || !costPrice || !category) {
             return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
         }
         const [result] = await db.query(
-            'INSERT INTO products (name, quantity, price) VALUES (?, ?, ?)',
-            [name, parseInt(quantity), parseFloat(price)]
+            'INSERT INTO products (name, quantity, price, cost_price, category) VALUES (?, ?, ?, ?, ?)',
+            [name, parseInt(quantity), parseFloat(price), parseFloat(costPrice), category]
         );
         await db.query(
             'INSERT INTO transactions (product_id, type, quantity) VALUES (?, ?, ?)',
             [result.insertId, 'IN', parseInt(quantity)]
         );
-        res.json({ message: 'เพิ่มสินค้าสำเร็จ' });
+        res.json({ message: 'เพิ่มสินค้าสำเร็จ', id: result.insertId });
     } catch (error) {
         console.error('Error adding product:', error.message, error.stack);
         res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเพิ่มสินค้า', details: error.message });
@@ -82,24 +82,27 @@ router.get('/dashboard', async (req, res) => {
         await testDbConnection();
         const [totalQuantity] = await db.query('SELECT COALESCE(SUM(quantity), 0) as total FROM products');
         const [totalValue] = await db.query('SELECT COALESCE(SUM(quantity * price), 0) as total FROM products');
+        const [totalProfit] = await db.query('SELECT COALESCE(SUM(quantity * (price - cost_price)), 0) as total FROM products');
         const [monthlyData] = await db.query(`
             SELECT 
                 DATE_FORMAT(COALESCE(t.created_at, NOW()), '%Y-%m') as month,
                 p.id as product_id,
                 p.name as product_name,
+                p.category,
                 COALESCE(SUM(CASE WHEN t.type = 'IN' THEN t.quantity ELSE -t.quantity END), 0) as net_quantity,
                 COALESCE(SUM(CASE WHEN t.type = 'IN' THEN t.quantity ELSE 0 END), 0) as stock_in,
                 COALESCE(SUM(CASE WHEN t.type = 'OUT' THEN t.quantity ELSE 0 END), 0) as stock_out
             FROM transactions t
             LEFT JOIN products p ON t.product_id = p.id
-            GROUP BY month, p.id, p.name
+            GROUP BY month, p.id, p.name, p.category
             ORDER BY month DESC, p.id
             LIMIT 120
         `);
         const responseData = {
             totalQuantity: parseInt(totalQuantity[0].total) || 0,
             totalValue: parseFloat(totalValue[0].total) || 0,
-            monthlyData: monthlyData.reverse() // Reverse to show oldest to newest
+            totalProfit: parseFloat(totalProfit[0].total) || 0,
+            monthlyData: monthlyData.reverse()
         };
         console.log('Dashboard data:', responseData);
         res.json(responseData);

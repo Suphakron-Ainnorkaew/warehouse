@@ -20,11 +20,16 @@ ChartJS.register(
 );
 
 function Dashboard() {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [loginFormData, setLoginFormData] = useState({ username: '', password: '' });
+    const [loginError, setLoginError] = useState('');
     const [products, setProducts] = useState([]);
     const [addFormData, setAddFormData] = useState({
         name: '',
         quantity: '',
-        price: ''
+        price: '',
+        costPrice: '',
+        category: ''
     });
     const [removeFormData, setRemoveFormData] = useState({ id: '', quantity: '' });
     const [addMessage, setAddMessage] = useState('');
@@ -32,14 +37,56 @@ function Dashboard() {
     const [dashboardData, setDashboardData] = useState({
         totalQuantity: 0,
         totalValue: 0,
+        totalProfit: 0,
         monthlyData: []
     });
     const [errorMessage, setErrorMessage] = useState('');
 
+    const categories = [
+        'อุปกรณ์การเรียน',
+        'อุปกรณ์ทั่วไป',
+        'สินค้าอุปโภคและบริโภค',
+        'ขนมและน้ำดื่ม'
+    ];
+
     useEffect(() => {
-        fetchProducts();
-        fetchDashboardData();
+        const authStatus = localStorage.getItem('isAuthenticated');
+        if (authStatus === 'true') {
+            setIsAuthenticated(true);
+            fetchProducts();
+            fetchDashboardData();
+        }
     }, []);
+
+    const handleLoginChange = (e) => {
+        setLoginFormData({ ...loginFormData, [e.target.name]: e.target.value });
+    };
+
+    const handleLoginSubmit = () => {
+        if (loginFormData.username === 'shopYim' && loginFormData.password === 'Yim234') {
+            setIsAuthenticated(true);
+            localStorage.setItem('isAuthenticated', 'true');
+            setLoginError('');
+            fetchProducts();
+            fetchDashboardData();
+        } else {
+            setLoginError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+        }
+    };
+
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        localStorage.removeItem('isAuthenticated');
+        setLoginFormData({ username: '', password: '' });
+        setProducts([]);
+        setDashboardData({
+            totalQuantity: 0,
+            totalValue: 0,
+            totalProfit: 0,
+            monthlyData: []
+        });
+        setErrorMessage('');
+    };
 
     const fetchProducts = async () => {
         try {
@@ -51,7 +98,10 @@ function Dashboard() {
             const data = await response.json();
             const formattedData = data.map(product => ({
                 ...product,
-                price: parseFloat(product.price) || 0
+                price: parseFloat(product.price) || 0,
+                costPrice: parseFloat(product.cost_price) || 0,
+                profitPerUnit: (parseFloat(product.price) || 0) - (parseFloat(product.cost_price) || 0),
+                category: product.category || 'อุปกรณ์การเรียน'
             }));
             setProducts(formattedData);
             setErrorMessage('');
@@ -69,10 +119,10 @@ function Dashboard() {
                 throw new Error(errorData.details || 'Failed to fetch dashboard data');
             }
             const data = await response.json();
-            console.log('Fetched dashboard data:', data);
             setDashboardData({
                 totalQuantity: parseInt(data.totalQuantity) || 0,
                 totalValue: parseFloat(data.totalValue) || 0,
+                totalProfit: parseFloat(data.totalProfit) || 0,
                 monthlyData: data.monthlyData || []
             });
             setErrorMessage('');
@@ -86,21 +136,23 @@ function Dashboard() {
         setAddFormData({ ...addFormData, [e.target.name]: e.target.value });
     };
 
-    const handleAddSubmit = async (e) => {
-        e.preventDefault();
+    const handleAddSubmit = async () => {
         try {
             const response = await fetch('http://localhost:5000/api/products/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...addFormData,
-                    quantity: parseInt(addFormData.quantity),
-                    price: parseFloat(addFormData.price)
+                    quantity: parseInt(addFormData.quantity) || 0,
+                    price: parseFloat(addFormData.price) || 0,
+                    costPrice: parseFloat(addFormData.costPrice) || 0,
+                    category: addFormData.category || 'อุปกรณ์การเรียน'
                 })
             });
             const data = await response.json();
-            setAddMessage(data.message || data.error);
-            setAddFormData({ name: '', quantity: '', price: '' });
+            if (!response.ok) throw new Error(data.error || 'Failed to add product');
+            setAddMessage(data.message);
+            setAddFormData({ name: '', quantity: '', price: '', costPrice: '', category: '' });
             fetchProducts();
             fetchDashboardData();
         } catch (error) {
@@ -112,41 +164,34 @@ function Dashboard() {
         setRemoveFormData({ ...removeFormData, [e.target.name]: e.target.value });
     };
 
-    const handleRemoveSubmit = async (e) => {
-        e.preventDefault();
+    const handleRemoveSubmit = async () => {
         try {
             const response = await fetch('http://localhost:5000/api/products/remove', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...removeFormData,
-                    quantity: parseInt(removeFormData.quantity)
+                    quantity: parseInt(removeFormData.quantity) || 0
                 })
             });
             const data = await response.json();
-            if (response.ok) {
-                setRemoveMessage(data.message);
-                setRemoveFormData({ id: '', quantity: '' });
-                fetchProducts();
-                fetchDashboardData();
-            } else {
-                setRemoveMessage(data.error);
-            }
+            if (!response.ok) throw new Error(data.error || 'Failed to remove product');
+            setRemoveMessage(data.message);
+            setRemoveFormData({ id: '', quantity: '' });
+            fetchProducts();
+            fetchDashboardData();
         } catch (error) {
             setRemoveMessage('เกิดข้อผิดพลาดในการลบสินค้า: ' + error.message);
         }
     };
 
-    // Colors for different products
     const colors = [
         '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed',
         '#db2777', '#ea580c', '#4b5563', '#14b8a6', '#8b5cf6'
     ];
 
-    // Prepare unique months
-    const months = [...new Set(dashboardData.monthlyData.map(item => item.month))].sort();
+    const months = [...new Set(dashboardData.monthlyData.map(item => item.month || ''))].sort();
 
-    // Prepare chart data for stock movement
     const quantityChartData = {
         labels: months,
         datasets: [
@@ -173,16 +218,15 @@ function Dashboard() {
         ]
     };
 
-    // Prepare chart data for net quantity per product
     const netQuantityChartData = {
         labels: months,
-        datasets: [...new Set(dashboardData.monthlyData.map(item => item.product_id))].map((productId, index) => {
+        datasets: [...new Set(dashboardData.monthlyData.map(item => item.product_id || ''))].map((productId, index) => {
             const productName = dashboardData.monthlyData.find(item => item.product_id === productId)?.product_name || `Product ${productId}`;
             return {
                 label: productName,
                 data: months.map(month => {
                     const item = dashboardData.monthlyData.find(i => i.month === month && i.product_id === productId);
-                    return item ? item.net_quantity : 0;
+                    return item ? item.net_quantity || 0 : 0;
                 }),
                 backgroundColor: colors[index % colors.length],
                 borderRadius: 4
@@ -190,9 +234,61 @@ function Dashboard() {
         })
     };
 
+    const profitByCategory = categories.map(category => {
+        const categoryProducts = products.filter(product => product.category === category);
+        const totalProfit = categoryProducts.reduce((sum, product) => sum + ((product.profitPerUnit || 0) * (product.quantity || 0)), 0);
+        return { category, totalProfit };
+    });
+
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+                <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">เข้าสู่ระบบ</h2>
+                    {loginError && (
+                        <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 border border-red-200">
+                            {loginError}
+                        </div>
+                    )}
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อผู้ใช้</label>
+                            <input
+                                type="text"
+                                name="username"
+                                value={loginFormData.username}
+                                onChange={handleLoginChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                placeholder="กรอกชื่อผู้ใช้"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">รหัสผ่าน</label>
+                            <input
+                                type="password"
+                                name="password"
+                                value={loginFormData.password}
+                                onChange={handleLoginChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                placeholder="กรอกรหัสผ่าน"
+                                required
+                            />
+                        </div>
+                        <button
+                            onClick={handleLoginSubmit}
+                            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+                        >
+                            เข้าสู่ระบบ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-            {/* Header */}
             <div className="bg-white shadow-sm border-b">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div className="flex items-center justify-between">
@@ -207,24 +303,34 @@ function Dashboard() {
                             </h1>
                             <p className="text-gray-600 mt-1">จัดการสินค้าและติดตามการเคลื่อนไหวของสต็อก</p>
                         </div>
-                        <button
-                            onClick={() => {
-                                fetchProducts();
-                                fetchDashboardData();
-                            }}
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm"
-                        >
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            รีเฟรชข้อมูล
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => {
+                                    fetchProducts();
+                                    fetchDashboardData();
+                                }}
+                                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm"
+                            >
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                รีเฟรชข้อมูล
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 shadow-sm"
+                            >
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                ออกจากระบบ
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Error Message */}
                 {errorMessage && (
                     <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
                         <div className="flex items-center">
@@ -236,7 +342,6 @@ function Dashboard() {
                     </div>
                 )}
 
-                {/* Dashboard Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                         <div className="flex items-center justify-between">
@@ -244,10 +349,8 @@ function Dashboard() {
                                 <p className="text-sm font-medium text-gray-600">จำนวนสินค้าทั้งหมด</p>
                                 <p className="text-3xl font-bold text-gray-900 mt-2">{dashboardData.totalQuantity.toLocaleString()}</p>
                             </div>
-                            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-cente
-r justify-center">
-                                <svg className="w  
-                                <svg className="w-6 h-6 text-blue-600 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4V17m0 0l-8 4m0-14L4 7m8 4v10M4 7v10l8 4" />
                                 </svg>
                             </div>
@@ -258,7 +361,7 @@ r justify-center">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-gray-600">มูลค่าสินค้าทั้งหมด</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">฿{(parseFloat(dashboardData.totalValue) || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                                <p className="text-3xl font-bold text-gray-900 mt-2">฿{(parseFloat(dashboardData.totalValue) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                             </div>
                             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,7 +375,7 @@ r justify-center">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-gray-600">ประเภทสินค้า</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{products.length}</p>
+                                <p className="text-3xl font-bold text-gray-900 mt-2">{[...new Set(products.map(p => p.category))].length}</p>
                             </div>
                             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -285,23 +388,21 @@ r justify-center">
                     <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">ราคาเฉลี่ย</p>
+                                <p className="text-sm font-medium text-gray-600">กำไรรวม</p>
                                 <p className="text-3xl font-bold text-gray-900 mt-2">
-                                    ฿{products.length > 0 ? (products.reduce((sum, p) => sum + parseFloat(p.price), 0) / products.length).toFixed(2) : '0.00'}
+                                    ฿{(parseFloat(dashboardData.totalProfit) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                                 <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                                 </svg>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Forms Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    {/* Add Product Form */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
                         <div className="p-6 border-b border-gray-100">
                             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
@@ -317,7 +418,7 @@ r justify-center">
                                     {addMessage}
                                 </div>
                             )}
-                            <form onSubmit={handleAddSubmit} className="space-y-4">
+                            <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อสินค้า</label>
                                     <input
@@ -329,6 +430,21 @@ r justify-center">
                                         placeholder="กรอกชื่อสินค้า"
                                         required
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทสินค้า</label>
+                                    <select
+                                        name="category"
+                                        value={addFormData.category}
+                                        onChange={handleAddChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                        required
+                                    >
+                                        <option value="">เลือกประเภทสินค้า</option>
+                                        {categories.map(category => (
+                                            <option key={category} value={category}>{category}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
@@ -344,7 +460,7 @@ r justify-center">
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">ราคา (฿)</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">ราคาขาย (฿)</label>
                                         <input
                                             type="number"
                                             name="price"
@@ -357,14 +473,29 @@ r justify-center">
                                         />
                                     </div>
                                 </div>
-                                <button type="submit" className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">ราคาต้นทุน (฿)</label>
+                                    <input
+                                        type="number"
+                                        name="costPrice"
+                                        value={addFormData.costPrice}
+                                        onChange={handleAddChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                        placeholder="0.00"
+                                        step="0.01"
+                                        required
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleAddSubmit}
+                                    className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                                >
                                     เพิ่มสินค้า
                                 </button>
-                            </form>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Remove Product Form */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
                         <div className="p-6 border-b border-gray-100">
                             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
@@ -380,7 +511,7 @@ r justify-center">
                                     {removeMessage}
                                 </div>
                             )}
-                            <form onSubmit={handleRemoveSubmit} className="space-y-4">
+                            <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">เลือกสินค้า</label>
                                     <select
@@ -393,7 +524,7 @@ r justify-center">
                                         <option value="">เลือกสินค้า</option>
                                         {products.map(product => (
                                             <option key={product.id} value={product.id}>
-                                                {product.name} (คงเหลือ: {product.quantity})
+                                                {product.name} ({product.category}, คงเหลือ: {product.quantity})
                                             </option>
                                         ))}
                                     </select>
@@ -410,15 +541,17 @@ r justify-center">
                                         required
                                     />
                                 </div>
-                                <button type="submit" className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium">
+                                <button
+                                    onClick={handleRemoveSubmit}
+                                    className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+                                >
                                     ลดสินค้า
                                 </button>
-                            </form>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Inventory Table */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
                     <div className="p-6 border-b border-gray-100">
                         <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
@@ -433,8 +566,11 @@ r justify-center">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อสินค้า</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ประเภท</th>
                                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวน</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ราคาต่อหน่วย</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ราคาต้นทุน</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ราคาขาย</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">กำไรต่อชิ้น</th>
                                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">มูลค่ารวม</th>
                                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
                                 </tr>
@@ -442,19 +578,28 @@ r justify-center">
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {products.map((product) => (
                                     <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-medium text-gray-600">{product.name}</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <span className="text-sm text-gray-900 font-medium">{product.quantity.toLocaleString()}</span>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="text-sm text-gray-600">{product.category}</span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <span className="text-sm text-gray-900">฿{(parseFloat(product.price) || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="text-sm text-gray-600 font-medium">{product.quantity.toLocaleString()}</span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <span className="text-sm font-medium text-gray-900">฿{((product.quantity * parseFloat(product.price)) || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="text-sm text-gray-600">฿{(parseFloat(product.costPrice) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="text-sm text-gray-600">฿{(parseFloat(product.price) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="text-sm text-gray-600">฿{(parseFloat(product.profitPerUnit) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="text-sm font-medium text-gray-600">฿{((product.quantity * parseFloat(product.price)) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
                                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                                 product.quantity > 10 ? 'bg-green-100 text-green-800' :
                                                 product.quantity > 5 ? 'bg-yellow-100 text-yellow-800' :
@@ -467,7 +612,7 @@ r justify-center">
                                 ))}
                                 {products.length === 0 && (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                                        <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
                                             <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                             </svg>
@@ -480,7 +625,49 @@ r justify-center">
                     </div>
                 </div>
 
-                {/* Charts */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
+                    <div className="p-6 border-b border-gray-100">
+                        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                            </svg>
+                            สรุปกำไรตามประเภทสินค้า
+                        </h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ประเภทสินค้า</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">กำไรรวม (฿)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {profitByCategory.map((item, index) => (
+                                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-medium text-gray-600">{item.category}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="text-sm font-medium text-gray-600">฿{item.totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {profitByCategory.length === 0 && (
+                                    <tr>
+                                        <td colSpan="2" className="px-6 py-8 text-center text-gray-500">
+                                            <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                            </svg>
+                                            ไม่มีข้อมูลกำไร
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
                         <div className="p-6 border-b border-gray-100">
@@ -613,7 +800,6 @@ r justify-center">
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="mt-12 text-center">
                     <div className="inline-flex items-center gap-2 text-sm text-gray-500">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
