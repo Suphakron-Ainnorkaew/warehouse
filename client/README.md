@@ -1,70 +1,217 @@
-# Getting Started with Create React App
+# Warehouse Management System - Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+ระบบจัดการคลังสินค้า Frontend ที่สร้างด้วย React และ Tailwind CSS
 
-## Available Scripts
+## คุณสมบัติ
 
-In the project directory, you can run:
+### 🎯 ฟีเจอร์หลัก
+- **แดชบอร์ด** - ภาพรวมระบบพร้อมสถิติและกิจกรรมล่าสุด
+- **จัดการสินค้า** - เพิ่ม แก้ไข ลบ และค้นหาสินค้า
+- **จัดการคลังสินค้า** - ติดตามสต็อกสินค้าในคลัง
+- **ระบบ Navigation** - Sidebar และ Header ที่ใช้งานง่าย
+- **Responsive Design** - รองรับทุกขนาดหน้าจอ
 
-### `npm start`
+### 🎨 UI/UX
+- **Modern Design** - ใช้ Tailwind CSS สำหรับ UI ที่สวยงาม
+- **Interactive Components** - Modal, Forms, Tables ที่ใช้งานง่าย
+- **Loading States** - แสดงสถานะการโหลดข้อมูล
+- **Toast Notifications** - แจ้งเตือนการดำเนินการต่างๆ
+- **Pagination** - แบ่งหน้าข้อมูล
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### 🔧 Technical Features
+- **React Hooks** - ใช้ useState, useEffect สำหรับ state management
+- **React Router** - จัดการ routing ระหว่างหน้า
+- **Axios** - เชื่อมต่อกับ API backend
+- **Lucide React** - Icons ที่สวยงาม
+- **React Hot Toast** - Notifications
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## การติดตั้ง
 
-### `npm test`
+### Prerequisites
+- Node.js (v14 หรือสูงกว่า)
+- npm หรือ yarn
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### ขั้นตอนการติดตั้ง
 
-### `npm run build`
+1. **ติดตั้ง Dependencies**
+```bash
+npm install
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+2. **สร้างไฟล์ Environment Variables**
+```bash
+# สร้างไฟล์ .env ในโฟลเดอร์ client
+REACT_APP_API_URL=http://localhost:5000/api
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+3. **รัน Development Server**
+```bash
+npm start
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+4. **เปิดเบราว์เซอร์**
+```
+http://localhost:3000
+```
 
-### `npm run eject`
+## โครงสร้างโปรเจค
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```
+client/
+├── public/
+│   ├── index.html
+│   └── favicon.ico
+├── src/
+│   ├── components/
+│   │   ├── ui/           # UI Components
+│   │   │   ├── Button.js
+│   │   │   ├── Input.js
+│   │   │   ├── Select.js
+│   │   │   └── Modal.js
+│   │   └── layout/       # Layout Components
+│   │       ├── Layout.js
+│   │       ├── Sidebar.js
+│   │       └── Header.js
+│   ├── pages/            # Page Components
+│   │   ├── Dashboard.js
+│   │   ├── Products.js
+│   │   └── Inventory.js
+│   ├── utils/            # Utility Functions
+│   │   ├── api.js        # API Service
+│   │   └── helpers.js    # Helper Functions
+│   ├── App.js
+│   ├── index.js
+│   └── index.css
+├── package.json
+├── tailwind.config.js
+└── README.md
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## การใช้งาน
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 1. แดชบอร์ด
+- ดูสถิติภาพรวมของระบบ
+- ตรวจสอบกิจกรรมล่าสุด
+- เข้าถึงฟีเจอร์ต่างๆ ผ่าน Quick Actions
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 2. จัดการสินค้า
+- เพิ่มสินค้าใหม่
+- แก้ไขข้อมูลสินค้า
+- ลบสินค้า
+- ค้นหาและกรองสินค้า
+- ดูรายละเอียดสต็อก
 
-## Learn More
+### 3. จัดการคลังสินค้า
+- เพิ่มรายการในคลัง
+- แก้ไขจำนวนสต็อก
+- ตั้งค่าระดับสต็อกขั้นต่ำ/สูงสุด
+- ดูสถานะสต็อก (ต่ำ/ปานกลาง/สูง)
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Components
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### UI Components
+- **Button** - ปุ่มที่มีหลาย variant และ size
+- **Input** - Input field พร้อม validation
+- **Select** - Dropdown selection
+- **Modal** - Popup dialog
 
-### Code Splitting
+### Layout Components
+- **Layout** - Layout หลักของแอป
+- **Sidebar** - Navigation sidebar
+- **Header** - Header พร้อม user menu
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Pages
+- **Dashboard** - หน้าแรกแสดงสถิติ
+- **Products** - จัดการสินค้า
+- **Inventory** - จัดการคลังสินค้า
 
-### Analyzing the Bundle Size
+## API Integration
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### API Service (`utils/api.js`)
+- เชื่อมต่อกับ backend API
+- จัดการ authentication
+- Error handling
+- Request/Response interceptors
 
-### Making a Progressive Web App
+### Helper Functions (`utils/helpers.js`)
+- Format functions (date, currency, number)
+- Validation functions
+- Status translation
+- Utility functions
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## การพัฒนา
 
-### Advanced Configuration
+### การเพิ่มหน้าใหม่
+1. สร้างไฟล์ใน `src/pages/`
+2. เพิ่ม route ใน `App.js`
+3. เพิ่ม menu item ใน `Sidebar.js`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### การเพิ่ม Component ใหม่
+1. สร้างไฟล์ใน `src/components/`
+2. Export component
+3. Import และใช้งาน
 
-### Deployment
+### การปรับแต่ง Styling
+- ใช้ Tailwind CSS classes
+- ปรับแต่ง `tailwind.config.js` สำหรับ custom styles
+- ใช้ `utils/helpers.js` สำหรับ dynamic classes
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## การ Deploy
 
-### `npm run build` fails to minify
+### Build สำหรับ Production
+```bash
+npm run build
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### Environment Variables
+```bash
+# Production
+REACT_APP_API_URL=https://your-api-domain.com/api
+
+# Development
+REACT_APP_API_URL=http://localhost:5000/api
+```
+
+## Troubleshooting
+
+### ปัญหาที่พบบ่อย
+
+1. **API Connection Error**
+   - ตรวจสอบ REACT_APP_API_URL ใน .env
+   - ตรวจสอบว่า backend server กำลังรัน
+
+2. **CORS Error**
+   - ตรวจสอบ proxy setting ใน package.json
+   - ตรวจสอบ CORS configuration ใน backend
+
+3. **Build Error**
+   - ลบ node_modules และติดตั้งใหม่
+   - ตรวจสอบ dependencies ใน package.json
+
+## การปรับปรุงในอนาคต
+
+### ฟีเจอร์ที่วางแผน
+- [ ] ระบบ Authentication/Authorization
+- [ ] หน้า Reports และ Analytics
+- [ ] ระบบ Notifications
+- [ ] Dark Mode
+- [ ] Multi-language Support
+- [ ] Export/Import Data
+- [ ] Advanced Search และ Filters
+- [ ] Real-time Updates
+
+### Technical Improvements
+- [ ] TypeScript Migration
+- [ ] Unit Tests
+- [ ] E2E Tests
+- [ ] Performance Optimization
+- [ ] PWA Support
+- [ ] Offline Support
+
+## License
+
+MIT License - ดูรายละเอียดใน LICENSE file
+
+## Support
+
+หากมีปัญหาหรือคำถาม กรุณาติดต่อทีมพัฒนา
