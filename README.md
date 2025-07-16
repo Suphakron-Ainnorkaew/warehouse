@@ -29,7 +29,7 @@
 
 ### 1. Backend (Node.js + Express + Prisma)
 - ให้บริการ RESTful API สำหรับทุกฟีเจอร์
-- เชื่อมต่อฐานข้อมูล (PostgreSQL)
+- เชื่อมต่อฐานข้อมูล (MySQL)
 - มีระบบยืนยันตัวตนและกำหนดสิทธิ์ผู้ใช้
 - ตรวจสอบและจัดการข้อมูลอย่างปลอดภัย
 
@@ -46,7 +46,7 @@
 ## เทคโนโลยีที่ใช้
 - **Frontend:** React, Tailwind CSS
 - **Backend:** Node.js, Express, Prisma
-- **Database:** PostgreSQL
+- **Database:** MySQL
 - **อื่น ๆ:** JWT, ESLint, Prettier
 
 ---
